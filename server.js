@@ -1,6 +1,6 @@
 const express = require('express');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -8,55 +8,127 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('.'));
 
-// Analyse du projet
-function analyzeProject() {
-  const files = fs.readdirSync('.');
-  const fileTypes = {
-    js: files.filter(f => f.endsWith('.js')).length,
-    html: files.filter(f => f.endsWith('.html')).length,
-    json: files.filter(f => f.endsWith('.json')).length,
-    md: files.filter(f => f.endsWith('.md')).length,
-    other: files.filter(f => !f.includes('.') || 
-           !['.js','.html','.json','.md'].some(ext => f.endsWith(ext))).length
-  };
-  
-  const hasPackageJson = fs.existsSync('package.json');
-  const scripts = hasPackageJson ? 
-    JSON.parse(fs.readFileSync('package.json')).scripts || {} : {};
-  
-  return { fileTypes, scripts, hasPackageJson };
-}
+// =====================
+// ENDPOINTS ÉCOSYSTÈME
+// =====================
 
-// Routes API
+// Santé du projet - Pour le dashboard maître
+app.get('/api/health', (req, res) => {
+  try {
+    const files = fs.readdirSync('.');
+    const packageJson = fs.existsSync('package.json') 
+      ? JSON.parse(fs.readFileSync('package.json', 'utf8'))
+      : {};
+    
+    res.json({
+      status: 'healthy',
+      project: '$project',
+      timestamp: new Date().toISOString(),
+      version: packageJson.version || '1.0.0',
+      totalFiles: files.length,
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      nodeVersion: process.version
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message
+    });
+  }
+});
+
+// Informations du projet
 app.get('/api/project-info', (req, res) => {
-  const projectInfo = analyzeProject();
-  res.json(projectInfo);
-});
-
-app.get('/api/files', (req, res) => {
-  const files = fs.readdirSync('.').map(file => {
-    const stats = fs.statSync(file);
-    return {
-      name: file,
-      type: stats.isDirectory() ? 'directory' : 'file',
-      size: stats.size,
-      modified: stats.mtime
+  try {
+    const files = fs.readdirSync('.', { recursive: true });
+    const fileTypes = {
+      js: files.filter(f => f.endsWith('.js')).length,
+      html: files.filter(f => f.endsWith('.html')).length,
+      json: files.filter(f => f.endsWith('.json')).length,
+      css: files.filter(f => f.endsWith('.css')).length,
+      sol: files.filter(f => f.endsWith('.sol')).length,
+      py: files.filter(f => f.endsWith('.py')).length,
+      other: files.filter(f => {
+        const ext = path.extname(f);
+        return !['.js','.html','.json','.css','.sol','.py'].includes(ext) && ext !== '';
+      }).length
     };
-  });
-  res.json(files);
+    
+    const packageInfo = fs.existsSync('package.json') 
+      ? JSON.parse(fs.readFileSync('package.json', 'utf8'))
+      : {};
+    
+    res.json({
+      name: '$project',
+      type: '$project'.includes('blockchain') ? 'BLOCKCHAIN' : 
+            '$project'.includes('elganyaia') ? 'AI' :
+            '$project'.includes('kamina') ? 'OS' : 'GENERAL',
+      fileTypes,
+      package: packageInfo,
+      dependencies: packageInfo.dependencies || {},
+      scripts: packageInfo.scripts || {}
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Route principale
+// Statut du réseau écosystème
+app.get('/api/network-status', async (req, res) => {
+  try {
+    // URLs des autres projets de l'écosystème
+    const ecosystemProjects = {
+      'elganyaia-11.4-deployer': 'https://elganyaia-114-deployer.vercel.app',
+      'elganyaia-11.4-final': 'https://elganyaia-114-final.vercel.app',
+      'blockchain-kamina-v2': 'https://blockchain-kamina-v2.vercel.app',
+      'blockchain-kamina': 'https://blockchain-kamina.vercel.app',
+      'kamina-os-ultimate-v2': 'https://kamina-os-ultimate-v2.vercel.app',
+      'kamina-os-ultimate': 'https://kamina-os-ultimate.vercel.app'
+    };
+    
+    const networkStatus = {};
+    
+    for (const [project, url] of Object.entries(ecosystemProjects)) {
+      try {
+        const response = await fetch(\`\${url}/api/health\`);
+        if (response.ok) {
+          const data = await response.json();
+          networkStatus[project] = {
+            status: 'online',
+            ...data
+          };
+        } else {
+          networkStatus[project] = {
+            status: 'offline',
+            error: 'Health check failed'
+          };
+        }
+      } catch (error) {
+        networkStatus[project] = {
+          status: 'offline',
+          error: error.message
+        };
+      }
+    }
+    
+    res.json(networkStatus);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================
+// ROUTE PRINCIPALE
+// =====================
 app.get('/', (req, res) => {
-  const projectInfo = analyzeProject();
-  
-  const html = `
+  const html = \`
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${project} - Interface Live</title>
+    <title>$project - Écosystème Connecté</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -64,254 +136,192 @@ app.get('/', (req, res) => {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: white;
+            padding: 20px;
         }
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
         }
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
+            padding: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
         }
-        .dashboard {
+        .ecosystem-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
         .card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-        .stats {
-            display: flex;
-            justify-content: space-around;
-            text-align: center;
-        }
-        .stat-item {
-            padding: 10px;
-        }
-        .stat-number {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #10b981;
-        }
-        .file-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .controls {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         .btn {
             background: #10b981;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 25px;
             cursor: pointer;
+            margin: 5px;
             transition: all 0.3s;
         }
         .btn:hover {
             background: #059669;
             transform: translateY(-2px);
         }
-        .live-badge {
-            background: #ef4444;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            animation: pulse 2s infinite;
+        .api-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
         }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
+        .status-online { border-left: 4px solid #10b981; }
+        .status-offline { border-left: 4px solid #ef4444; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 ${project} - Interface Live</h1>
-            <div class="live-badge">🔴 EN DIRECT</div>
+            <h1>🚀 $project</h1>
+            <p>Partie intégrante de l'écosystème - Connecté et opérationnel</p>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="testHealth()">🧪 Tester Santé</button>
+                <button class="btn" onclick="openDashboard()">🏠 Dashboard Maître</button>
+                <button class="btn" onclick="checkNetwork()">🌐 Vérifier Réseau</button>
+            </div>
         </div>
         
-        <div class="dashboard">
+        <div class="ecosystem-grid">
             <div class="card">
-                <h3>📊 Statistiques du Projet</h3>
-                <div class="stats" id="stats">
-                    <!-- Chargé dynamiquement -->
+                <h3>📊 Informations Projet</h3>
+                <div id="projectInfo">
+                    <p>Chargement...</p>
                 </div>
             </div>
             
             <div class="card">
-                <h3>⚙️ Scripts Disponibles</h3>
-                <div class="controls" id="scripts">
-                    <!-- Chargé dynamiquement -->
+                <h3>🔗 Écosystème</h3>
+                <div id="ecosystemStatus">
+                    <p>Chargement du réseau...</p>
                 </div>
             </div>
             
             <div class="card">
-                <h3>📁 Fichiers du Projet</h3>
-                <div class="file-list" id="fileList">
-                    <!-- Chargé dynamiquement -->
-                </div>
+                <h3>🎯 Actions Rapides</h3>
+                <button class="btn" onclick="refreshAll()">🔄 Actualiser Tout</button>
+                <button class="btn" onclick="viewAPIs()">📡 Voir APIs</button>
+                <button class="btn" onclick="syncWithEcosystem()">🔗 Synchroniser</button>
             </div>
         </div>
         
         <div class="card">
-            <h3>🎮 Contrôles en Temps Réel</h3>
-            <div class="controls">
-                <button class="btn" onclick="refreshData()">🔄 Actualiser</button>
-                <button class="btn" onclick="showProjectInfo()">ℹ️ Informations</button>
-                <button class="btn" onclick="testAPI()">🧪 Tester API</button>
+            <h3>📡 Endpoints API</h3>
+            <div class="api-status status-online">
+                <strong>GET /api/health</strong> - Santé du projet ✅
+            </div>
+            <div class="api-status status-online">
+                <strong>GET /api/project-info</strong> - Informations projet ✅
+            </div>
+            <div class="api-status status-online">
+                <strong>GET /api/network-status</strong> - Statut réseau ✅
             </div>
         </div>
     </div>
 
     <script>
-        // Chargement des données
-        async function loadProjectData() {
+        // Test de l'endpoint santé
+        async function testHealth() {
             try {
-                const [projectInfo, files] = await Promise.all([
-                    fetch('/api/project-info').then(r => r.json()),
-                    fetch('/api/files').then(r => r.json())
-                ]);
-                
-                updateStats(projectInfo);
-                updateScripts(projectInfo.scripts);
-                updateFileList(files);
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                alert(\`✅ Santé du projet: \${data.status}\\n\${data.project} - Version \${data.version}\`);
             } catch (error) {
-                console.error('Erreur:', error);
+                alert('❌ Erreur de santé: ' + error.message);
             }
         }
         
-        function updateStats(info) {
-            const statsHtml = \`
-                <div class="stat-item">
-                    <div class="stat-number">\${info.fileTypes.js}</div>
-                    <div>Fichiers JS</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">\${info.fileTypes.html}</div>
-                    <div>Fichiers HTML</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">\${info.fileTypes.json}</div>
-                    <div>Fichiers JSON</div>
-                </div>
-            \`;
-            document.getElementById('stats').innerHTML = statsHtml;
+        // Ouvrir le dashboard maître
+        function openDashboard() {
+            window.open('https://ecosystem-master.vercel.app', '_blank');
         }
         
-        function updateScripts(scripts) {
-            let scriptsHtml = '';
-            for (const [name, command] of Object.entries(scripts)) {
-                scriptsHtml += \`<button class="btn" onclick="runScript('\${name}')">\${name}</button>\`;
+        // Vérifier le réseau
+        async function checkNetwork() {
+            try {
+                const response = await fetch('/api/network-status');
+                const data = await response.json();
+                
+                let onlineCount = 0;
+                let statusHtml = '';
+                
+                for (const [project, info] of Object.entries(data)) {
+                    statusHtml += \`
+                        <div class="api-status \${info.status === 'online' ? 'status-online' : 'status-offline'}">
+                            <strong>\${project}</strong>: \${info.status}
+                        </div>
+                    \`;
+                    if (info.status === 'online') onlineCount++;
+                }
+                
+                document.getElementById('ecosystemStatus').innerHTML = \`
+                    <p>\${onlineCount} projets en ligne</p>
+                    \${statusHtml}
+                \`;
+                
+            } catch (error) {
+                document.getElementById('ecosystemStatus').innerHTML = '❌ Erreur réseau';
             }
-            document.getElementById('scripts').innerHTML = scriptsHtml || '<p>Aucun script trouvé</p>';
         }
         
-        function updateFileList(files) {
-            const fileListHtml = files.map(file => \`
-                <div class="file-item">
-                    <span>\${file.type === 'directory' ? '📁' : '📄'} \${file.name}</span>
-                    <span>\${file.type === 'file' ? (file.size / 1024).toFixed(2) + ' KB' : ''}</span>
-                </div>
-            \`).join('');
-            document.getElementById('fileList').innerHTML = fileListHtml;
+        // Charger les informations du projet
+        async function loadProjectInfo() {
+            try {
+                const response = await fetch('/api/project-info');
+                const data = await response.json();
+                
+                document.getElementById('projectInfo').innerHTML = \`
+                    <p><strong>Type:</strong> \${data.type}</p>
+                    <p><strong>Fichiers:</strong> \${Object.entries(data.fileTypes).map(([type, count]) => \`\${type}: \${count}\`).join(', ')}</p>
+                    <p><strong>Dépendances:</strong> \${Object.keys(data.dependencies).length}</p>
+                \`;
+            } catch (error) {
+                document.getElementById('projectInfo').innerHTML = '❌ Erreur chargement';
+            }
         }
         
-        // Contrôles interactifs
-        function refreshData() {
-            loadProjectData();
-            showNotification('Données actualisées !');
+        function refreshAll() {
+            loadProjectInfo();
+            checkNetwork();
         }
         
-        function showProjectInfo() {
-            alert('Interface live pour \${project}\\nDéployé sur Vercel\\nServeur Node.js actif');
+        function viewAPIs() {
+            alert('Endpoints disponibles:\\n• /api/health\\n• /api/project-info\\n• /api/network-status');
         }
         
-        function testAPI() {
-            fetch('/api/project-info')
-                .then(r => r.json())
-                .then(data => {
-                    console.log('Test API réussi:', data);
-                    showNotification('✅ Test API réussi !');
-                });
-        }
-        
-        function runScript(scriptName) {
-            showNotification(\`Exécution de: \${scriptName}\`);
-            // Ici vous pourriez appeler une API pour exécuter le script
-        }
-        
-        function showNotification(message) {
-            // Créer une notification temporaire
-            const notification = document.createElement('div');
-            notification.style.cssText = \`
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #10b981;
-                color: white;
-                padding: 15px;
-                border-radius: 10px;
-                z-index: 1000;
-                animation: slideIn 0.3s ease;
-            \`;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
+        function syncWithEcosystem() {
+            alert('🔄 Synchronisation avec l\\'écosystème...');
+            refreshAll();
         }
         
         // Initialisation
-        loadProjectData();
-        setInterval(loadProjectData, 10000); // Actualisation toutes les 10s
-        
-        // Styles pour l'animation
-        const style = document.createElement('style');
-        style.textContent = \`
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        \`;
-        document.head.appendChild(style);
+        loadProjectInfo();
+        checkNetwork();
     </script>
 </body>
 </html>
-  `;
+  \`;
   
   res.send(html);
 });
 
 app.listen(PORT, () => {
-  console.log(\`🚀 Serveur ${project} démarré sur le port \${PORT}\`);
-});
-
-// Endpoint pour l'écosystème
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
-    project: '$project',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
+  console.log(\`🚀 $project - Serveur écosystème démarré sur le port \${PORT}\`);
 });
