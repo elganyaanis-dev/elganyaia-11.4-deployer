@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>elganyaia-11.4-deployer - GitHub + Vercel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 3rem;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+        }
+        h1 { 
+            font-size: 2rem; 
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .badge {
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 15px;
+            display: inline-block;
+            margin: 5px;
+            font-size: 0.9rem;
+        }
+        .info {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            text-align: left;
+        }
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 elganyaia-11.4-deployer</h1>
+        
+        <div class="tech-stack">
+            <div class="badge">✅ GitHub</div>
+            <div class="badge">🚀 Vercel</div>
+            <div class="badge">📱 Responsive</div>
+            <div class="badge">⚡ Performant</div>
+        </div>
+        
+        <div class="info">
+            <p><strong>🎯 Déployé via GitHub + Vercel</strong></p>
+            <p>Ce projet utilise l'intégration continue :</p>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>Code stocké sur GitHub</li>
+                <li>Déploiement automatique sur Vercel</li>
+                <li>Mise à jour à chaque push</li>
+            </ul>
+        </div>
+        
+        <div class="info">
+            <p><strong>📊 Statut du projet :</strong></p>
+            <p>• Nom: <strong>elganyaia-11.4-deployer</strong></p>
+            <p>• Dernière mise à jour: <script>document.write(new Date().toLocaleString('fr-FR'))</script></p>
+            <p>• Statut: <strong style="color: #10b981;">✅ Opérationnel</strong></p>
+        </div>
+        
+        <p style="margin-top: 20px; font-size: 0.9em; opacity: 0.8;">
+            Déployé automatiquement depuis GitHub via Vercel
+        </p>
+    </div>
+
+    <script>
+        console.log('✅ elganyaia-11.4-deployer - Déployé via GitHub + Vercel');
+        console.log('Timestamp:', new Date().toISOString());
+        
+        // Animation des badges
+        const badges = document.querySelectorAll('.badge');
+        badges.forEach((badge, index) => {
+            setTimeout(() => {
+                badge.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    badge.style.transform = 'scale(1)';
+                }, 200);
+            }, index * 300);
+        });
+    </script>
+</body>
+</html>
